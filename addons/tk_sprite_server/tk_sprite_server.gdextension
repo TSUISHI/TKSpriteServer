@@ -1,0 +1,25 @@
+; TKSpriteServer — GDExtension 定義
+; 設計書: CLAUDE_SPEC_TKSpriteServerKit.md §11.3
+;
+; バイナリが存在しないプラットフォームでは、ClassDB へクラスが登録されないため
+; TKSpriteServer.create() が自動的に GDScript 実装 (TKSpriteServerGD) を返します。
+; したがってバイナリ未提供 = 動作不能 にはなりません。
+
+[configuration]
+
+entry_symbol = "tk_sprite_server_init"
+compatibility_minimum = "4.4"
+reloadable = true
+
+[libraries]
+
+windows.debug.x86_64   = "res://addons/tk_sprite_server/bin/libtksprite.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://addons/tk_sprite_server/bin/libtksprite.windows.template_release.x86_64.dll"
+
+linux.debug.x86_64     = "res://addons/tk_sprite_server/bin/libtksprite.linux.template_debug.x86_64.so"
+linux.release.x86_64   = "res://addons/tk_sprite_server/bin/libtksprite.linux.template_release.x86_64.so"
+
+; macOS は x86_64 と arm64 を lipo で結合した universal framework を1つだけ置きます。
+; アーキテクチャ別の行は書きません（framework 内で解決されるため）。
+macos.debug            = "res://addons/tk_sprite_server/bin/libtksprite.macos.template_debug.framework"
+macos.release          = "res://addons/tk_sprite_server/bin/libtksprite.macos.template_release.framework"

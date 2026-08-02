@@ -1,0 +1,137 @@
+{
+  "version": 2,
+  "atlases": {
+    "demo": "res://demo/assets/placeholder_atlas.png"
+  },
+  "sprites": [
+    {
+      "id": 0,
+      "name": "PULSE",
+      "atlas": "demo",
+      "layout": "row",
+      "rect": [
+        1,
+        0,
+        16,
+        17
+      ],
+      "frame_count": 5,
+      "draw_size": [
+        32,
+        32
+      ],
+      "durations": [
+        90,
+        90,
+        90,
+        140,
+        220
+      ],
+      "tags": {
+        "pulse": [
+          0,
+          4
+        ]
+      },
+      "comment": "row レイアウト。durations でフレームごとの表示時間を変えています。"
+    },
+    {
+      "id": 1,
+      "name": "SHAPES",
+      "atlas": "demo",
+      "layout": "frames",
+      "frames": [
+        [
+          0,
+          16,
+          16,
+          16
+        ],
+        [
+          16,
+          16,
+          16,
+          16
+        ],
+        [
+          32,
+          16,
+          16,
+          16
+        ]
+      ],
+      "draw_size": [
+        32,
+        32
+      ],
+      "durations": [
+        300,
+        300,
+        300
+      ],
+      "tags": {
+        "cycle": [
+          0,
+          2
+        ]
+      },
+      "comment": "frames レイアウト。不等間隔・非横並びの矩形を明示列挙できます。"
+    },
+    {
+      "id": 2,
+      "name": "RING",
+      "atlas": "demo",
+      "layout": "single",
+      "rect": [
+        0,
+        32,
+        16,
+        16
+      ],
+      "draw_size": [
+        32,
+        32
+      ],
+      "comment": "single レイアウト。反転（FLIP）と拡大縮小の確認に使います。"
+    },
+    {
+      "id": 3,
+      "name": "ARROW",
+      "atlas": "demo",
+      "layout": "rotated",
+      "rect": [
+        0,
+        48,
+        16,
+        16
+      ],
+      "original_orientation": 64,
+      "roughness": 3,
+      "draw_size": [
+        32,
+        32
+      ],
+      "comment": "rotated レイアウト。1枚の下向き矢印から32方向を実行時生成します。"
+    },
+    {
+      "id": 4,
+      "name": "COIN",
+      "atlas": "demo",
+      "layout": "spin",
+      "rect": [
+        0,
+        64,
+        16,
+        16
+      ],
+      "frame_count": 8,
+      "original_orientation": 64,
+      "visual_period_dirs": 256,
+      "draw_size": [
+        32,
+        32
+      ],
+      "comment": "spin レイアウト。1枚の絵からその場で回るアニメを実行時生成します。"
+    }
+  ]
+}

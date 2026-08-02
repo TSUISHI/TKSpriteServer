@@ -1,0 +1,12 @@
+# 改行コードはリポジトリ内では LF に正規化します。
+# 開発機が Windows でも、配布物が CRLF 混在にならないようにするためです。
+* text=auto eol=lf
+
+# バイナリは変換しません。
+*.png binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.lib binary
+*.exp binary
+*.aseprite binary

@@ -1,0 +1,32 @@
+# Godot
+.godot/
+*.translation
+
+# ローカル開発では native/godot-cpp を H:\VCPP\GodotLink\godot-cpp\godot-cpp への
+# ジャンクションにしています。配布リポジトリでは git submodule へ置き換えます。
+native/godot-cpp
+
+# GDExtension build artifacts
+native/**/*.o
+native/**/*.obj
+native/**/*.os
+native/**/*.pdb
+native/**/*.ilk
+native/**/*.exp
+native/**/*.lib
+native/.sconsign.dblite
+native/godot-cpp/bin/
+native/godot-cpp/gen/
+
+# ビルド済みバイナリはリポジトリへコミットします（アセットライブラリの登録方式A）。
+# AssetLib はタグのアーカイブを配布するため、バイナリが入っていないと
+# 利用者がエディタから入れただけでは動きません。
+# 共有ライブラリ本体だけを入れ、リンク時の中間生成物と一時ファイルは除外します。
+addons/tk_sprite_server/bin/*.exp
+addons/tk_sprite_server/bin/*.lib
+addons/tk_sprite_server/bin/*.pdb
+addons/tk_sprite_server/bin/~*
+
+# OS
+.DS_Store
+Thumbs.db

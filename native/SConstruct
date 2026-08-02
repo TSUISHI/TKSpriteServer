@@ -1,0 +1,46 @@
+#!/usr/bin/env python
+#
+# TKSpriteServer — GDExtension ビルド定義
+# 設計書: CLAUDE_SPEC_TKSpriteServerKit.md §11.4
+#
+# 使い方（Windows / このPC）:
+#   & 'C:\Program Files\Inkscape\bin\python.exe' -m SCons platform=windows target=template_debug arch=x86_64 api_version=4.4
+#
+# 注意:
+#   ・godot-cpp は native/godot-cpp に配置します（配布リポジトリでは git submodule、
+#     ローカル開発では H:\VCPP\GodotLink\godot-cpp\godot-cpp へのジャンクション）。
+#   ・godot-cpp v10 系は api_version で対象 Godot バージョンを指定できます。
+#     compatibility_minimum と揃えるため api_version=4.4 を渡してください。
+#   ・SCons が MSVC を見つけられない場合は %ProgramFiles(x86)% が未設定の可能性があります
+#     （設計書 §11.4.2 参照）。
+
+env = SConscript("godot-cpp/SConstruct")
+
+# ヘッダ検索パス。src/ 直下だけを見ます。
+env.Append(CPPPATH=["src/"])
+
+sources = [
+    "src/register_types.cpp",
+    "src/tk_sprite_server_native.cpp",
+]
+
+# 出力先はアドオンの bin フォルダです。.gdextension の [libraries] と
+# ファイル名が一致している必要があります（libtksprite<suffix><拡張子>）。
+BIN_DIR = "../addons/tk_sprite_server/bin"
+
+if env["platform"] == "macos":
+    # macOS は universal framework 1つにまとめます（設計書 §11.6）。
+    library = env.SharedLibrary(
+        "{}/libtksprite.{}.{}.framework/libtksprite.{}.{}".format(
+            BIN_DIR, env["platform"], env["target"], env["platform"], env["target"]
+        ),
+        source=sources,
+    )
+else:
+    library = env.SharedLibrary(
+        "{}/libtksprite{}{}".format(BIN_DIR, env["suffix"], env["SHLIBSUFFIX"]),
+        source=sources,
+    )
+
+env.NoCache(library)
+Default(library)

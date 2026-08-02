@@ -1,0 +1,55 @@
+# TKSpriteServer — GDExtension バイナリのビルド
+#
+# 配布方式Aのため、ビルド済みバイナリはリポジトリへコミットして配布します。
+# このワークフローは成果物（artifact）を作るところまでを担当し、コミットは行いません。
+# リリース前に、ダウンロードしたバイナリを addons/tk_sprite_server/bin/ へ置いて
+# コミットしてください。
+#
+# godot-cpp は submodule にせず、ここで固定タグから clone します。
+# ローカル開発機では native/godot-cpp を共有ツリーへのジャンクションにしており、
+# .gitignore で除外しているため、CI では必ず新規に取得されます。
+
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  # 対応下限に合わせた godot-cpp のタグです。plugin の compatibility_minimum と
+  # 揃えてあります。上げる場合は tk_sprite_server.gdextension も同時に見直します。
+  GODOT_CPP_REF: godot-4.4-stable
+
+jobs:
+  windows:
+    name: Windows x86_64
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install SCons
+        run: pip install scons
+
+      - name: Clone godot-cpp
+        run: git clone --depth 1 --branch ${{ env.GODOT_CPP_REF }} https://github.com/godotengine/godot-cpp native/godot-cpp
+
+      - name: Build (template_debug)
+        run: scons -C native platform=windows target=template_debug arch=x86_64
+
+      - name: Build (template_release)
+        run: scons -C native platform=windows target=template_release arch=x86_64
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: tksprite-windows-x86_64
+          path: addons/tk_sprite_server/bin/*.dll
+          if-no-files-found: error
