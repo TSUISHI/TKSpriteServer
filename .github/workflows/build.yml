@@ -14,8 +14,18 @@ name: build
 on:
   push:
     branches: [main]
+    # ドキュメントだけの変更でフルビルドを回さないようにします。
+    paths-ignore:
+      - "**/*.md"
+      - "media/**"
   pull_request:
   workflow_dispatch:
+
+# 同じブランチへ続けて push した場合、古い実行を打ち切ります。
+# 1 回のビルドが長いため、これが無いと待ち行列が積み上がります。
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   # 対応下限に合わせた godot-cpp のタグです。plugin の compatibility_minimum と
@@ -41,11 +51,13 @@ jobs:
       - name: Clone godot-cpp
         run: git clone --depth 1 --branch ${{ env.GODOT_CPP_REF }} https://github.com/godotengine/godot-cpp native/godot-cpp
 
+      # SCons は明示しないと 1 ジョブで走ります。godot-cpp の全ビルドを 2 回行うため、
+      # ランナーのコア数を渡さないと極端に遅くなります。
       - name: Build (template_debug)
-        run: scons -C native platform=windows target=template_debug arch=x86_64
+        run: scons -C native platform=windows target=template_debug arch=x86_64 -j4
 
       - name: Build (template_release)
-        run: scons -C native platform=windows target=template_release arch=x86_64
+        run: scons -C native platform=windows target=template_release arch=x86_64 -j4
 
       - name: Upload binaries
         uses: actions/upload-artifact@v4
