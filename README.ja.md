@@ -98,6 +98,21 @@ func _process(_delta: float) -> void:
 | `TKSpriteRegistry.register_all(server, defs_path, draw_size_scale)` | 定義 JSON を一括登録します |
 | `TKAsepriteImporter.import_sheet_into_file(...)` | Aseprite のエクスポート JSON を定義ファイルへ取り込みます |
 
+## デモ
+
+`demo/demo_stress.tscn` — スループット計測用。実行中に反転と拡縮を切り替えられます。
+
+<p align="center">
+  <img src="media/preview_stress.png" width="720" alt="demo_stress">
+</p>
+
+`demo/demo_definitions.tscn` — 5 種のレイアウト（row / frames / single / rotated / spin）を
+1 つの JSON から再生します。rotated と spin のアトラスは 1 枚の元絵から実行時に生成されます。
+
+<p align="center">
+  <img src="media/preview_definitions.png" width="720" alt="demo_definitions">
+</p>
+
 ## フォルダ構成
 
 | パス | 内容 |

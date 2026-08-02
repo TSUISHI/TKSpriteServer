@@ -100,6 +100,22 @@ func _process(_delta: float) -> void:
 | `TKSpriteRegistry.register_all(server, defs_path, draw_size_scale)` | Register a whole definition file |
 | `TKAsepriteImporter.import_sheet_into_file(...)` | Merge an Aseprite export into a definition file |
 
+## Demos
+
+`demo/demo_stress.tscn` — throughput benchmark, with runtime flip and scale toggles.
+
+<p align="center">
+  <img src="media/preview_stress.png" width="720" alt="demo_stress">
+</p>
+
+`demo/demo_definitions.tscn` — the five definition layouts (row / frames / single /
+rotated / spin) played back from a single JSON file. The rotated and spin atlases are
+generated at run time from one source image.
+
+<p align="center">
+  <img src="media/preview_definitions.png" width="720" alt="demo_definitions">
+</p>
+
 ## Repository layout
 
 | Path | Contents |
