@@ -85,9 +85,9 @@ func _process(_delta: float) -> void:
 | 文書 | 内容 |
 |---|---|
 | [使い方ガイド](docs/guide.ja.md) / [User guide](docs/guide.md) | まずはこちら。空のプロジェクトから大量スプライトまでと、つまずいたときの対処 |
-| [API リファレンス](docs/api.md) | 公開クラスとメソッドの一覧（英語） |
-| [スプライト定義ファイル](docs/sprite_definitions.md) | JSON スキーマ、レイアウト、v1 互換（英語） |
-| [Aseprite 連携](docs/aseprite.md) | 書き出し、取り込み、再インポート時に残るもの（英語） |
+| [API リファレンス](docs/api.ja.md) | 公開クラスとメソッドの一覧 |
+| [スプライト定義ファイル](docs/sprite_definitions.ja.md) | JSON スキーマ、レイアウト、v1 互換 |
+| [Aseprite 連携](docs/aseprite.ja.md) | 書き出し、取り込み、再インポート時に残るもの |
 
 ## 主な API
 
