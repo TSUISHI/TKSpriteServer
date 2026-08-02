@@ -80,6 +80,15 @@ func _process(_delta: float) -> void:
 	_server.commit_frame()
 ```
 
+## ドキュメント
+
+| 文書 | 内容 |
+|---|---|
+| [使い方ガイド](docs/guide.ja.md) / [User guide](docs/guide.md) | まずはこちら。空のプロジェクトから大量スプライトまでと、つまずいたときの対処 |
+| [API リファレンス](docs/api.md) | 公開クラスとメソッドの一覧（英語） |
+| [スプライト定義ファイル](docs/sprite_definitions.md) | JSON スキーマ、レイアウト、v1 互換（英語） |
+| [Aseprite 連携](docs/aseprite.md) | 書き出し、取り込み、再インポート時に残るもの（英語） |
+
 ## 主な API
 
 | 呼び出し | 内容 |
@@ -121,7 +130,8 @@ func _process(_delta: float) -> void:
 | `native/` | GDExtension の C++ ソースとビルド設定（`.gdignore` 済み・エクスポート対象外） |
 | `demo/` | `demo_stress`（性能計測）と `demo_definitions`（定義 JSON 再生）のデモシーン |
 | `tests/` | ヘッドレスで実行できるテストスイート |
-| `tools/` | リポジトリ整備用スクリプト（アイコン生成） |
+| `docs/` | 使い方ガイドとリファレンス |
+| `tools/` | リポジトリ整備用スクリプト（アイコン・スクリーンショット生成） |
 
 デモとテストのアセットはすべて実行時生成のプレースホルダ図形で、ゲームアートは含みません。
 

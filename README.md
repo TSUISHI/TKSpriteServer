@@ -82,6 +82,15 @@ func _process(_delta: float) -> void:
     _server.commit_frame()
 ```
 
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [User guide](docs/guide.md) / [使い方ガイド](docs/guide.ja.md) | Start here — from an empty project to thousands of moving sprites, plus troubleshooting |
+| [API reference](docs/api.md) | Every public class and method |
+| [Sprite definition files](docs/sprite_definitions.md) | The JSON schema, layouts, v1 compatibility |
+| [Aseprite workflow](docs/aseprite.md) | Exporting, importing, and what survives a re-import |
+
 ## API overview
 
 | Call | Purpose |
@@ -124,7 +133,8 @@ generated at run time from one source image.
 | `native/` | GDExtension C++ sources and build files (`.gdignore`d, excluded from exports) |
 | `demo/` | `demo_stress` (benchmark) and `demo_definitions` (definition playback) scenes |
 | `tests/` | Headless test suites |
-| `tools/` | Repository maintenance scripts (icon generation) |
+| `docs/` | User guide and reference documentation |
+| `tools/` | Repository maintenance scripts (icon and screenshot generation) |
 
 All demo and test assets are placeholder shapes generated at build time; no game art is included.
 
