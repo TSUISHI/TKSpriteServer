@@ -1,45 +1,53 @@
 # TKSpriteServer
 
-Godot 4 用の高スループット 2D スプライトサーバーです。
-GDExtension (C++) 実装と、API 互換の純 GDScript 実装を同梱し、
-実行時に自動で切り替えます（ネイティブライブラリが無い環境でもそのまま動作します）。
+<p align="center">
+  <img src="media/icon.png" width="128" alt="TKSpriteServer">
+</p>
 
-- リンクID方式のスプライトプール（数万枚規模）
-- dirty フラグによる差分更新（変化のないスプライトは再描画しません）
-- 5 プレーンの描画管理（back / medium / front / effect / text）
-- 反転（FLIP / FLOP）と拡縮の実行時切り替え
-- スプライト文字 HUD（`sprlocate` / `sprprint` / `sprcls`）
-- JSON スプライト定義システムと、エディタ下部パネルの視覚的定義エディタ
-- 回転アトラス・スピンアトラスの自動生成（1 枚の絵から最大 256 方向）
-- Aseprite 連携（エクスポート JSON の取り込み。再インポートしても sprite_id は変わりません）
+A high-throughput 2D sprite server for Godot 4.
 
-## 性能
+It ships a GDExtension (C++) backend together with an API-compatible pure GDScript
+backend, and picks one automatically at runtime — so your project still runs on
+platforms where no native binary is available.
 
-`demo/demo_stress.tscn` での実測（`_update_sprites` + `commit_frame` の 60 フレーム平均、
-Windows / Godot 4.6.3。GPU 負荷や vsync 待ちは含みません）。
+日本語版は [README.ja.md](README.ja.md) を参照してください。
 
-| スプライト数 | GDExtension | GDScript フォールバック |
+- Link-ID sprite pool that scales to tens of thousands of sprites
+- Dirty-flag incremental updates — unchanged sprites are never redrawn
+- Five draw planes (back / medium / front / effect / text)
+- Runtime flip (FLIP / FLOP) and scaling
+- Sprite-text HUD (`sprlocate` / `sprprint` / `sprcls`)
+- JSON sprite definition system with a visual definition editor in a bottom panel
+- Automatic rotation and spin atlas generation (up to 256 directions from one source image)
+- Aseprite integration (imports exported JSON; sprite ids stay stable across re-imports)
+
+## Performance
+
+Measured with `demo/demo_stress.tscn` — 60-frame average of `_update_sprites` +
+`commit_frame`, on Windows / Godot 4.6.3. GPU load and vsync waits are excluded.
+
+| Sprites | GDExtension | GDScript fallback |
 |---|---|---|
 | 10,000 | **7.2 – 8.5 ms/frame** | 82 – 87 ms/frame |
 | 20,000 | **15.0 – 16.6 ms/frame** | 61 – 167 ms/frame |
 
-ネイティブ実装は体数に対してほぼ線形で、フレーム時間も安定しています。
+The native backend scales close to linearly with sprite count and keeps frame time stable.
 
-## 動作環境
+## Requirements
 
-- Godot 4.4 以降（`compatibility_minimum = 4.4`）
-- 同梱バイナリ: Windows x86_64（template_debug / template_release）
-- 同梱バイナリが無いプラットフォームでは、GDScript 実装へ自動的にフォールバックします。
-  API と描画結果は両バックエンドで同一です。
+- Godot 4.4 or newer (`compatibility_minimum = 4.4`)
+- Bundled binaries: Windows x86_64 (template_debug / template_release)
+- On platforms without a bundled binary the GDScript backend takes over automatically.
+  The API and the rendered result are identical on both backends.
 
-## 導入
+## Installation
 
-1. `addons/tk_sprite_server/` をプロジェクトの `addons/` へコピーします。
-2. プロジェクト設定 → プラグイン で **TKSpriteServer** を有効化します。
-   エディタ下部に「Sprite Definitions」パネルが追加されます。
-3. GDExtension を認識させるため、エディタを一度再起動してください。
+1. Copy `addons/tk_sprite_server/` into your project's `addons/` directory.
+2. Enable **TKSpriteServer** in Project Settings → Plugins.
+   A "Sprite Definitions" panel is added to the editor's bottom dock.
+3. Restart the editor once so the GDExtension is picked up.
 
-## 最小の使い方
+## Quick start
 
 ```gdscript
 extends Node2D
@@ -48,66 +56,67 @@ var _server: Object
 var _link_id: int
 
 func _ready() -> void:
-	# 描画先の canvas_item を 3 枚用意します。
-	var back: RID = RenderingServer.canvas_item_create()
-	var medium: RID = RenderingServer.canvas_item_create()
-	var front: RID = RenderingServer.canvas_item_create()
-	for plane_rid in [back, medium, front]:
-		RenderingServer.canvas_item_set_parent(plane_rid, get_canvas())
+    # Create the three canvas items the server draws into.
+    var back: RID = RenderingServer.canvas_item_create()
+    var medium: RID = RenderingServer.canvas_item_create()
+    var front: RID = RenderingServer.canvas_item_create()
+    for plane_rid in [back, medium, front]:
+        RenderingServer.canvas_item_set_parent(plane_rid, get_canvas())
 
-	# ネイティブが使えれば native、無ければ gdscript のサーバーが返ります。
-	# 戻り値は Node なので、必ずシーンツリーへ入れてください。
-	_server = TKSpriteServer.create(4096, true)
-	add_child(_server)
-	_server.set_plane_rids(back, medium, front)
-	print(TKSpriteServer.get_backend_name(_server))  # "native" / "gdscript"
+    # Returns the native server when available, the GDScript one otherwise.
+    # The result is a Node, so it must be added to the scene tree.
+    _server = TKSpriteServer.create(4096, true)
+    add_child(_server)
+    _server.set_plane_rids(back, medium, front)
+    print(TKSpriteServer.get_backend_name(_server))  # "native" / "gdscript"
 
-	# 定義 JSON のスプライトをまとめて登録します。
-	TKSpriteRegistry.register_all(_server, "res://devdata/sprite_definitions.json")
+    # Register every sprite described by a definition file.
+    TKSpriteRegistry.register_all(_server, "res://devdata/sprite_definitions.json")
 
-	# sprite_id 0 のスプライトを 1 体確保します。
-	_link_id = _server.allocate_link_id(0)
+    # Reserve one persistent sprite using sprite_id 0.
+    _link_id = _server.allocate_link_id(0)
 
 func _process(_delta: float) -> void:
-	_server.update_sprite(_link_id, Vector2(120.0, 80.0), 0)
-	# 1 フレームの最後に 1 回だけ呼びます。ここで実際の描画が確定します。
-	_server.commit_frame()
+    _server.update_sprite(_link_id, Vector2(120.0, 80.0), 0)
+    # Call once at the end of the frame. This is where drawing is committed.
+    _server.commit_frame()
 ```
 
-## 主な API
+## API overview
 
-| 呼び出し | 内容 |
+| Call | Purpose |
 |---|---|
-| `TKSpriteServer.create(max_sprites, pixel_snap, prefer_native)` | バックエンドを自動選択してサーバーを生成します |
-| `TKSpriteServer.get_backend_name(server)` | `"native"` / `"gdscript"` を返します |
-| `server.set_plane_rids(back, medium, front)` | 描画先プレーンを設定します |
-| `server.allocate_link_id(sprite_id, flip_h, flip_v, plane_type, priority)` | 永続スプライトを確保します |
-| `server.update_sprite(link_id, pos, frame, color, plane_type, priority)` | 位置・フレーム・色を更新します |
-| `server.update_sprite_scaled(link_id, pos, scale, ...)` | 倍率指定で拡縮します |
-| `server.update_sprite_stretched(link_id, pos, draw_size, ...)` | 描画サイズ指定で拡縮します |
-| `server.set_sprite_flip(link_id, flip_h, flip_v)` | 実行中に反転を切り替えます |
-| `server.request_draw(sprite_id, pos, flip_h, flip_v, plane_type, priority)` | その 1 フレームだけの使い捨て描画です |
-| `server.destroy_sprite(link_id)` | スプライトを解放します |
-| `server.commit_frame()` | フレーム末尾に 1 回呼びます |
-| `TKSpriteRegistry.register_all(server, defs_path, draw_size_scale)` | 定義 JSON を一括登録します |
-| `TKAsepriteImporter.import_sheet_into_file(...)` | Aseprite のエクスポート JSON を定義ファイルへ取り込みます |
+| `TKSpriteServer.create(max_sprites, pixel_snap, prefer_native)` | Create a server with the backend chosen automatically |
+| `TKSpriteServer.get_backend_name(server)` | Returns `"native"` or `"gdscript"` |
+| `server.set_plane_rids(back, medium, front)` | Set the canvas items to draw into |
+| `server.allocate_link_id(sprite_id, flip_h, flip_v, plane_type, priority)` | Reserve a persistent sprite |
+| `server.update_sprite(link_id, pos, frame, color, plane_type, priority)` | Update position, frame and colour |
+| `server.update_sprite_scaled(link_id, pos, scale, ...)` | Scale by a factor |
+| `server.update_sprite_stretched(link_id, pos, draw_size, ...)` | Scale to an explicit draw size |
+| `server.set_sprite_flip(link_id, flip_h, flip_v)` | Flip at runtime |
+| `server.request_draw(sprite_id, pos, flip_h, flip_v, plane_type, priority)` | One-shot draw for a single frame |
+| `server.destroy_sprite(link_id)` | Release a sprite |
+| `server.commit_frame()` | Call once per frame, at the end |
+| `TKSpriteRegistry.register_all(server, defs_path, draw_size_scale)` | Register a whole definition file |
+| `TKAsepriteImporter.import_sheet_into_file(...)` | Merge an Aseprite export into a definition file |
 
-## フォルダ構成
+## Repository layout
 
-| パス | 内容 |
+| Path | Contents |
 |---|---|
-| `addons/tk_sprite_server/` | 配布するアドオン本体（バイナリ同梱） |
-| `native/` | GDExtension の C++ ソースとビルド設定（`.gdignore` 済み・エクスポート対象外） |
-| `demo/` | `demo_stress`（性能計測）と `demo_definitions`（定義 JSON 再生）のデモシーン |
-| `tests/` | ヘッドレスで実行できるテストスイート |
+| `addons/tk_sprite_server/` | The add-on itself, binaries included |
+| `native/` | GDExtension C++ sources and build files (`.gdignore`d, excluded from exports) |
+| `demo/` | `demo_stress` (benchmark) and `demo_definitions` (definition playback) scenes |
+| `tests/` | Headless test suites |
+| `tools/` | Repository maintenance scripts (icon generation) |
 
-デモとテストのアセットはすべて実行時生成のプレースホルダ図形で、ゲームアートは含みません。
+All demo and test assets are placeholder shapes generated at build time; no game art is included.
 
-## 現在の状態
+## Status
 
-コア実装、Windows ビルド、定義システム、定義エディタ、Aseprite エクスポート JSON の
-取り込みまで完了しています。`.aseprite` バイナリの直接読み込みは今後の予定です。
+The core, the Windows build, the definition system, the definition editor and the
+Aseprite JSON import are complete. Reading `.aseprite` files directly is planned.
 
-## ライセンス
+## License
 
 MIT License / Copyright (c) 2026 Ken TSUISHI
