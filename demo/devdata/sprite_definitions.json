@@ -10,10 +10,10 @@
       "atlas": "demo",
       "layout": "row",
       "rect": [
-        1,
+        0,
         0,
         16,
-        17
+        16
       ],
       "frame_count": 5,
       "draw_size": [
