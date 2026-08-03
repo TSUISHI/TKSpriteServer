@@ -17,7 +17,16 @@
 set -euo pipefail
 
 TARGET="${1:?usage: make_macos_framework.sh <template_debug|template_release> [version]}"
-VERSION="${2:-0.1.0}"
+# 第2引数を省略した場合は plugin.cfg から読みます。呼び出し側が渡し忘れても
+# 配布物のバージョンがずれないようにするためです。
+VERSION="${2:-}"
+if [ -z "${VERSION}" ]; then
+	VERSION="$(sed -n 's/^version="\(.*\)"$/\1/p' "$(dirname "$0")/../addons/tk_sprite_server/plugin.cfg")"
+fi
+if [ -z "${VERSION}" ]; then
+	echo "error: plugin.cfg から version を読めませんでした。" >&2
+	exit 1
+fi
 
 BIN_DIR="$(cd "$(dirname "$0")/../addons/tk_sprite_server/bin" && pwd)"
 NAME="libtksprite.macos.${TARGET}"
