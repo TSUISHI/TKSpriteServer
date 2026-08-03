@@ -1,5 +1,5 @@
 ; TKSpriteServer — GDExtension 定義
-; 設計書: CLAUDE_SPEC_TKSpriteServerKit.md §11.3
+; 設計書 §11.3
 ;
 ; バイナリが存在しないプラットフォームでは、ClassDB へクラスが登録されないため
 ; TKSpriteServer.create() が自動的に GDScript 実装 (TKSpriteServerGD) を返します。

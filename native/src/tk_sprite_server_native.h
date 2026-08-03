@@ -30,7 +30,7 @@
 //     commit_frame() の transform で実際に反転を描画へ反映するようにした。
 //   - 通常スプライトの MultiMesh バッチ経路（batches/BatchData/init_multimesh）
 //     は canvas_item 経路と二重描画になるため公開版から外した
-//     （設計書 CLAUDE_SPEC_TKSpriteServerKit.md §4.4.3 案B）。
+//     （設計書 §4.4.3 案B）。
 // ===========================================================================
 
 #include <godot_cpp/classes/node2d.hpp>

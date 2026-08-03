@@ -3,7 +3,7 @@ class_name TKSpriteServer extends RefCounted
 # ╔═══════════════════════════════════════════════════════════════════════════╗
 # ║  tk_sprite_server.gd — バックエンド自動切替ファサード                      ║
 # ╠═══════════════════════════════════════════════════════════════════════════╣
-# ║  設計書: CLAUDE_SPEC_TKSpriteServerKit.md §6.1 / §4.3 / §4.4                ║
+# ║  設計書 §6.1 / §4.3 / §4.4                                                  ║
 # ║                                                                            ║
 # ║  【役割】                                                                  ║
 # ║  ・ネイティブ実装 TKSpriteServerNative（ClassDB 登録の Node2D 派生）が     ║

@@ -13,7 +13,7 @@
 #   4. rotated / spin は TKSpriteAtlasBuilder が返した結果をここで登録する
 #      （移植元は生成関数の中で登録していた）。
 #
-# 設計書: CLAUDE_SPEC_TKSpriteServerKit.md §6.3
+# 設計書 §6.3
 #
 # 【メモリ規則】起動時とツール実行時にのみ使用します。毎フレーム呼んではいけません。
 

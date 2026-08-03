@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # TKSpriteServer — macOS の .framework バンドルを仕上げる
-# 設計書: CLAUDE_SPEC_TKSpriteServerKit.md §11.6
+# 設計書 §11.6
 #
 # SCons が作るのは framework ディレクトリとその中の共有ライブラリだけです。
 # Godot は "<name>.framework/<name>"（拡張子なし）を dlopen し、codesign は

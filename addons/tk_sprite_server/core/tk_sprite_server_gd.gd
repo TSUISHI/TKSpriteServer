@@ -12,7 +12,7 @@
 #   3. 公開API（set_sprite_flip / get_sprite_flip / update_sprite_scaled /
 #      get_sprite_id_from_link / get_stats / clear_all）を追加した。
 #
-# 設計書: CLAUDE_SPEC_TKSpriteServerKit.md §4.3 / §4.4
+# 設計書 §4.3 / §4.4
 
 class_name TKSpriteServerGD extends Node
 
