@@ -5,6 +5,12 @@
 # リリース前に、ダウンロードしたバイナリを addons/tk_sprite_server/bin/ へ置いて
 # コミットしてください。
 #
+# 取り込み方（アーティファクト名 → 配置先はいずれも addons/tk_sprite_server/bin/）:
+#   tksprite-windows-x86_64 … *.dll をそのまま置く
+#   tksprite-linux-x86_64   … *.so をそのまま置く
+#   tksprite-macos-universal … tar.gz を bin/ で展開する（zip 展開では framework の
+#                              実行権限と署名構造が崩れうるため tar で固めています）
+#
 # godot-cpp は submodule にせず、ここで固定タグから clone します。
 # ローカル開発機では native/godot-cpp を共有ツリーへのジャンクションにしており、
 # .gitignore で除外しているため、CI では必ず新規に取得されます。
@@ -64,4 +70,92 @@ jobs:
         with:
           name: tksprite-windows-x86_64
           path: addons/tk_sprite_server/bin/*.dll
+          if-no-files-found: error
+
+  linux:
+    name: Linux x86_64
+    # 新しい ubuntu ほど glibc が新しくなり、利用者側の動作下限が上がります。
+    # 互換性を優先して、利用可能な中で古いランナーを明示的に指定します。
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install SCons
+        run: pip install scons
+
+      - name: Clone godot-cpp
+        run: git clone --depth 1 --branch ${{ env.GODOT_CPP_REF }} https://github.com/godotengine/godot-cpp native/godot-cpp
+
+      - name: Build (template_debug)
+        run: scons -C native platform=linux target=template_debug arch=x86_64 -j4
+
+      - name: Build (template_release)
+        run: scons -C native platform=linux target=template_release arch=x86_64 -j4
+
+      # .gdextension が期待するファイル名と、リンクした共有ライブラリの依存関係を
+      # ログに残します。名前が 1 文字でも違うと Godot 側は黙ってフォールバックします。
+      - name: Verify
+        run: |
+          ls -la addons/tk_sprite_server/bin/
+          for so in addons/tk_sprite_server/bin/*.so; do
+            echo "=== $so"
+            file "$so"
+            ldd "$so" || true
+          done
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: tksprite-linux-x86_64
+          path: addons/tk_sprite_server/bin/*.so
+          if-no-files-found: error
+
+  macos:
+    name: macOS universal
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install SCons
+        run: pip install scons
+
+      - name: Clone godot-cpp
+        run: git clone --depth 1 --branch ${{ env.GODOT_CPP_REF }} https://github.com/godotengine/godot-cpp native/godot-cpp
+
+      # godot-cpp の SCons は arch=universal を渡すと x86_64 と arm64 の両方を
+      # コンパイル・結合します（設計書 §11.6(1)）。手動 lipo は不要です。
+      - name: Build (template_debug)
+        run: scons -C native platform=macos target=template_debug arch=universal -j4
+
+      - name: Build (template_release)
+        run: scons -C native platform=macos target=template_release arch=universal -j4
+
+      # framework の実行バイナリ名を拡張子なしへ揃え、Resources/Info.plist を作り、
+      # ad-hoc 署名します。lipo / otool / codesign の出力もこのステップのログに出ます。
+      - name: Finalize frameworks
+        run: |
+          bash native/make_macos_framework.sh template_debug
+          bash native/make_macos_framework.sh template_release
+
+      # zip では framework の実行権限と _CodeSignature が崩れうるため tar で固めます。
+      - name: Pack frameworks
+        run: tar czf tksprite-macos-universal.tar.gz -C addons/tk_sprite_server/bin libtksprite.macos.template_debug.framework libtksprite.macos.template_release.framework
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: tksprite-macos-universal
+          path: tksprite-macos-universal.tar.gz
           if-no-files-found: error

@@ -37,9 +37,21 @@ The native backend scales close to linearly with sprite count and keeps frame ti
 ## Requirements
 
 - Godot 4.4 or newer (`compatibility_minimum = 4.4`)
-- Bundled binaries: Windows x86_64 (template_debug / template_release)
 - On platforms without a bundled binary the GDScript backend takes over automatically.
-  The API and the rendered result are identical on both backends.
+  The API and the rendered result are identical on both backends, so a missing binary
+  costs performance, never functionality.
+
+| Platform | Native binary | Runtime check |
+|---|---|---|
+| Windows x86_64 | bundled (`template_debug` / `template_release`) | verified |
+| Linux x86_64 | built by CI, bundled once committed | not yet run |
+| macOS universal (x86_64 + arm64) | built by CI, bundled once committed | not yet run |
+| Anything else | — | GDScript backend |
+
+The macOS binary is shipped as an **ad-hoc signed** `.framework` bundle, which is enough
+for the extension to load. Proper Developer ID signing and notarization are the
+responsibility of whoever ships the final game — the framework inside your application
+bundle is signed together with it.
 
 ## Installation
 
@@ -142,9 +154,10 @@ All demo and test assets are placeholder shapes generated at build time; no game
 
 ## Status
 
-The core, the Windows build, the definition system, the definition editor, the Aseprite
-JSON import and direct `.aseprite` reading are complete. A drag-and-drop editor importer
-for `.aseprite` is planned.
+The core, the definition system, the definition editor, the Aseprite JSON import and
+direct `.aseprite` reading are complete. The Windows binary is bundled and verified;
+Linux and macOS universal builds are produced by CI and are pending a first run on real
+hardware. A drag-and-drop editor importer for `.aseprite` is planned.
 
 ## License
 

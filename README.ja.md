@@ -35,9 +35,20 @@ Windows / Godot 4.6.3。GPU 負荷や vsync 待ちは含みません）。
 ## 動作環境
 
 - Godot 4.4 以降（`compatibility_minimum = 4.4`）
-- 同梱バイナリ: Windows x86_64（template_debug / template_release）
 - 同梱バイナリが無いプラットフォームでは、GDScript 実装へ自動的にフォールバックします。
-  API と描画結果は両バックエンドで同一です。
+  API と描画結果は両バックエンドで同一なので、バイナリが無い場合に失われるのは
+  性能だけで、機能は失われません。
+
+| プラットフォーム | ネイティブバイナリ | 実機確認 |
+|---|---|---|
+| Windows x86_64 | 同梱（`template_debug` / `template_release`） | 済 |
+| Linux x86_64 | CI でビルド。コミット取り込み後に同梱 | 未 |
+| macOS universal（x86_64 + arm64） | CI でビルド。コミット取り込み後に同梱 | 未 |
+| その他 | — | GDScript 実装 |
+
+macOS 版は **ad-hoc 署名済み**の `.framework` バンドルとして配布します。拡張のロードには
+これで足ります。正式な Developer ID 署名と公証は、最終的にゲームを配布する側の責務です
+（アプリバンドル内の本 framework は、アプリと一緒に署名されるため）。
 
 ## 導入
 
@@ -139,9 +150,10 @@ func _process(_delta: float) -> void:
 
 ## 現在の状態
 
-コア実装、Windows ビルド、定義システム、定義エディタ、Aseprite エクスポート JSON の
-取り込み、`.aseprite` バイナリの直接読み込みまで完了しています。エディタへドラッグ＆
-ドロップで取り込む機能は今後の予定です。
+コア実装、定義システム、定義エディタ、Aseprite エクスポート JSON の取り込み、
+`.aseprite` バイナリの直接読み込みまで完了しています。Windows バイナリは同梱・確認済み、
+Linux と macOS universal は CI でビルドまで用意し、実機での初回確認待ちです。
+エディタへドラッグ＆ドロップで取り込む機能は今後の予定です。
 
 ## ライセンス
 

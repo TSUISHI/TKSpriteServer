@@ -10,3 +10,11 @@
 *.lib binary
 *.exp binary
 *.aseprite binary
+
+# macOS の framework バンドルは中身を一切変換しません。実行バイナリには拡張子が無く、
+# Info.plist と _CodeSignature も ad-hoc 署名がバイト単位で対象にしているため、
+# 改行コード変換が入ると署名が壊れます。
+addons/tk_sprite_server/bin/*.framework/** binary
+
+# シェルスクリプトは CRLF だと CI のランナーで実行できません。
+*.sh text eol=lf
