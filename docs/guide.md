@@ -9,17 +9,18 @@ scene with thousands of moving sprites. For exact signatures see
 ## Contents
 
 1. [Is this addon for you?](#1-is-this-addon-for-you)
-2. [Installing](#2-installing)
-3. [Your first sprite](#3-your-first-sprite)
-4. [Moving many sprites](#4-moving-many-sprites)
-5. [Layers](#5-layers)
-6. [Flipping and scaling](#6-flipping-and-scaling)
-7. [Definition files instead of code](#7-definition-files-instead-of-code)
-8. [Sprites that face a direction](#8-sprites-that-face-a-direction)
-9. [The sprite-text HUD](#9-the-sprite-text-hud)
-10. [Shutting down cleanly](#10-shutting-down-cleanly)
-11. [Getting the most out of it](#11-getting-the-most-out-of-it)
-12. [Troubleshooting](#12-troubleshooting)
+2. [How it draws this fast](#2-how-it-draws-this-fast)
+3. [Installing](#3-installing)
+4. [Your first sprite](#4-your-first-sprite)
+5. [Moving many sprites](#5-moving-many-sprites)
+6. [Layers](#6-layers)
+7. [Flipping and scaling](#7-flipping-and-scaling)
+8. [Definition files instead of code](#8-definition-files-instead-of-code)
+9. [Sprites that face a direction](#9-sprites-that-face-a-direction)
+10. [The sprite-text HUD](#10-the-sprite-text-hud)
+11. [Shutting down cleanly](#11-shutting-down-cleanly)
+12. [Getting the most out of it](#12-getting-the-most-out-of-it)
+13. [Troubleshooting](#13-troubleshooting)
 
 ---
 
@@ -39,7 +40,68 @@ physics body, animation player and editor-placed transform. That is what `Sprite
 The mental model is closer to a 2D graphics library than to the Godot scene tree: you own
 the game state, and every frame you tell the server where things are.
 
-## 2. Installing
+## 2. How it draws this fast
+
+Knowing what the server does internally makes the design decisions above it much easier.
+Every trick below serves one goal: doing less work during the frame.
+
+**No nodes — it draws straight through `RenderingServer`**
+
+Each sprite is one canvas item RID, not a `Sprite2D`, parented to a plane (a canvas item of
+its own). There is no scene-tree insertion, no `_process` propagation, and no per-node
+memory.
+
+**A link id is a slot in a fixed-size pool**
+
+The pool is allocated in one go by `create(max_sprites, ...)` and never grows afterwards.
+`allocate_link_id()` hands back one free slot; `destroy_sprite()` removes it in O(1) by
+swapping with the last active entry. Nothing is allocated or freed per frame — the price is
+that `allocate_link_id()` returns `-1` once the pool is full.
+
+**Updates are buffered and committed in one pass by `commit_frame()`**
+
+`update_sprite()` only writes into the server's own state; it never touches the
+`RenderingServer`. Every actual draw call happens inside `commit_frame()`. The native
+backend keeps four dirty flags per sprite — parent, draw index, transform, and visual — and
+issues **only the calls whose input actually changed**. A sprite that merely moved gets a new
+transform and keeps its existing texture rect. That is why calling `update_sprite()` with
+unchanged values every frame costs almost nothing.
+
+**Rotation happens when the atlas is built, not when the sprite is drawn**
+
+For speed, the server does not rotate anything at draw time. Instead, **the rotated artwork
+is baked into the atlas**. The `rotated` and `spin` layouts generate every direction from a
+single source image at load time and lay them out as one horizontal strip in one texture. At
+run time all you change is the frame index, so rotation costs nothing. Even the generation
+step only truly rotates the first quadrant (64 directions' worth); the other three are
+derived by flipping, so a quarter of the work produces the whole circle. Rotation uses
+nearest-neighbour sampling, so pixel-art edges stay crisp.
+
+**Atlases are shared, and sprites on the same texture flow through together**
+
+Every sprite gets its own link id, but each `atlases` alias in a definition file is loaded as
+exactly one texture, shared by every sprite that names it. Sprites that use the same texture
+and sit next to each other in draw order are processed as one batch by Godot's 2D renderer,
+so **one packed atlas beats several small images**. Assigning planes and `priority` so the
+texture does not keep changing is what makes that pay off.
+
+**Generated atlases are cached and reused**
+
+Rotation and spin results are cached per process, keyed by image path, crop rect,
+orientation and roughness. When the same sprite is requested again — a scene rebuilt, the
+same source referenced from several definition files — the cached texture is reused instead
+of being regenerated. The cache is never evicted automatically; it stays for the life of the
+process unless you call `TKSpriteAtlasBuilder.clear_cache()`. It buys load time with memory,
+so generate at start-up or from a tool, never inside the frame loop.
+
+**Top-left coordinates, integer snapping, flips through the transform**
+
+Positions are top-left based, not centre based. A flip is the sign of the transform's scale
+(`-1`), with the top-left offset cancelled out by shifting the origin by one sprite width or
+height. The final position is rounded to whole pixels so that fractional coordinates don't
+shimmer when a low resolution is scaled up.
+
+## 3. Installing
 
 1. Copy `addons/tk_sprite_server/` into your project's `addons/` folder.
 2. Enable **TKSpriteServer** in Project Settings → Plugins.
@@ -49,7 +111,7 @@ Windows x86_64 binaries are bundled. On other platforms nothing breaks — the a
 back to a pure GDScript backend with the same API and the same visual result, just
 slower. You can check which one you got at run time with `TKSpriteServer.get_backend_name()`.
 
-## 3. Your first sprite
+## 4. Your first sprite
 
 Three things have to happen before anything appears:
 
@@ -99,7 +161,7 @@ frame, and destroy it when the object dies. Do not allocate one per frame.
 A **sprite id** is an entry in the sprite table — a texture plus its frame rectangles.
 Many link ids can share one sprite id.
 
-## 4. Moving many sprites
+## 5. Moving many sprites
 
 The pattern scales without changing shape. Keep your own arrays, and push them to the
 server each frame:
@@ -142,7 +204,7 @@ if link_id < 0:
 Free a sprite with `destroy_sprite(link_id)` when the object dies, otherwise the pool
 drains.
 
-## 5. Layers
+## 6. Layers
 
 Sprites go to one of five planes, chosen with `plane_type`:
 
@@ -167,7 +229,7 @@ _server.update_sprite(_link_id, pos, 0, Color.WHITE, 0, 5)            # move it 
 
 Pass `-1` for `plane_type` or `priority` to keep the current value.
 
-## 6. Flipping and scaling
+## 7. Flipping and scaling
 
 Flipping can be set when allocating, or changed at any time:
 
@@ -194,7 +256,7 @@ sprite to white. For a hit flash, use an overbright colour such as
 `Color(1.8, 1.8, 1.8)`; a pixel that is genuinely black stays black no matter how high
 you push it.
 
-## 7. Definition files instead of code
+## 8. Definition files instead of code
 
 Writing `sprite_textures[id] = {...}` by hand stops being pleasant at about the tenth
 sprite. A definition file moves all of it into JSON:
@@ -233,7 +295,7 @@ rectangles over the atlas and save. The full schema is in
 [aseprite.md](aseprite.md) — an exported sheet imports in one call and keeps its ids
 across re-imports.
 
-## 8. Sprites that face a direction
+## 9. Sprites that face a direction
 
 For something that must point in the direction it is travelling — a ship, a homing
 missile, a rotating rock — you do not need to draw every angle. Mark the sprite `rotated`
@@ -267,7 +329,7 @@ Rotation is nearest-neighbour, so pixel art stays crisp, and results are cached 
 process. Generating hundreds of directions for many sprites does cost time at load, which
 is what the `progress_callback` argument of `register_all()` is for.
 
-## 9. The sprite-text HUD
+## 10. The sprite-text HUD
 
 If your font is a sprite sheet — one glyph per frame — you get a text layer for free:
 
@@ -286,7 +348,7 @@ func _update_hud() -> void:
 
 Glyph *n* is drawn with sprite id `glyph_base_id + n`, so lay your font out in that order.
 
-## 10. Shutting down cleanly
+## 11. Shutting down cleanly
 
 The server owns `RenderingServer` RIDs, which are not freed automatically when the node
 goes away:
@@ -300,7 +362,7 @@ func _exit_tree() -> void:
 Do the same before you replace a server (for example when switching backends at run
 time), or the RIDs leak for the rest of the session.
 
-## 11. Getting the most out of it
+## 12. Getting the most out of it
 
 - **Call `commit_frame()` once per frame, at the very end.** Calling it more often does
   redundant work; forgetting it means nothing renders.
@@ -314,7 +376,7 @@ time), or the RIDs leak for the rest of the session.
   start-up tools; keep them out of the frame loop.
 - **Cache the backend name** if you show it in a HUD; don't call it every frame.
 
-## 12. Troubleshooting
+## 13. Troubleshooting
 
 **Nothing appears.**
 In order: did you call `commit_frame()`? Did you call `set_plane_rids()`? Are the plane
