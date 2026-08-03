@@ -75,8 +75,29 @@ static func import_sheet_text(
 	if typeof(parsed) != TYPE_DICTIONARY:
 		push_error("TKAsepriteImporter: データJSONのパースに失敗しました: " + json_path)
 		return {}
-	var sheet: Dictionary = parsed
+	return import_sheet_dict(parsed, json_path, existing_defs, split_by_tag, sprite_name, atlas_alias)
+# [import_sheet_text]END
 
+
+# [import_sheet_dict]
+# 処理内容: パース済みの Aseprite データJSON（と同じ形の Dictionary）を定義JSONへ変換し、
+#           既存定義へマージします。経路A（JSON文字列）と経路B（.aseprite 直読み）は
+#           どちらもこの関数へ合流します。
+# 引数 sheet:         Aseprite のデータJSONと同じ形の Dictionary です。
+# 引数 json_path:     シート画像のパス解決と既定名に使う元のパスです。
+# 引数 existing_defs: 既存の定義です。
+# 引数 split_by_tag:  true ならタグごとに別スプライトへ分割します。
+# 引数 sprite_name:   生成するスプライト名です。
+# 引数 atlas_alias:   アトラス別名です。
+# 戻り値: マージ済みの正規化された定義 Dictionary。失敗時は空 Dictionary です。
+static func import_sheet_dict(
+	sheet: Dictionary,
+	json_path: String,
+	existing_defs: Dictionary = {},
+	split_by_tag: bool = false,
+	sprite_name: String = "",
+	atlas_alias: String = ""
+) -> Dictionary:
 	var frames: Array = collect_frames(sheet)
 	if frames.is_empty():
 		push_error("TKAsepriteImporter: frames が空です: " + json_path)
@@ -117,7 +138,7 @@ static func import_sheet_text(
 		merge_sprite(defs, sprite)
 
 	return TKSpriteDefinitions.normalize_defs(defs)
-# [import_sheet_text]END
+# [import_sheet_dict]END
 
 
 # [collect_frames]
@@ -404,3 +425,179 @@ static func import_sheet_into_file(
 		return false
 	return TKSpriteDefinitions.save_file(defs_path, merged)
 # [import_sheet_into_file]END
+
+
+# [import_aseprite]
+# 処理内容: 経路B の入口です。.aseprite を直接読み、合成したフレームを横一列のシート画像へ
+#           まとめてから、経路A と同じ変換処理（import_sheet_dict）へ合流させます。
+#           これにより ID の維持と手編集フィールドのマージは経路A と完全に同じ挙動になります。
+# 引数 ase_path:       読み込む .aseprite のパスです。
+# 引数 sheet_png_path: 書き出すシートPNGのパスです。空なら書き出しません。
+# 引数 existing_defs:  既存の定義です。
+# 引数 split_by_tag:   true ならタグごとに別スプライトへ分割します。
+# 引数 sprite_name:    生成するスプライト名です。空なら .aseprite のファイル名を大文字にして使います。
+# 引数 atlas_alias:    アトラス別名です。空ならシート画像のファイル名（拡張子なし）を使います。
+# 戻り値: マージ済みの正規化された定義 Dictionary。失敗時は空 Dictionary です。
+static func import_aseprite(
+	ase_path: String,
+	sheet_png_path: String = "",
+	existing_defs: Dictionary = {},
+	split_by_tag: bool = false,
+	sprite_name: String = "",
+	atlas_alias: String = ""
+) -> Dictionary:
+	var doc: Dictionary = TKAsepriteFile.load_file(ase_path)
+	if doc.is_empty():
+		return {}
+
+	var images: Array = TKAsepriteFile.build_frame_images(doc)
+	if images.is_empty():
+		push_error("TKAsepriteImporter: フレームを合成できませんでした: " + ase_path)
+		return {}
+
+	var strip: Dictionary = pack_images_to_strip(images)
+	if strip.is_empty():
+		return {}
+
+	# 書き出し先が指定されていないときは、保存はせずにパスだけ決めます
+	# （アトラス別名とシート参照の解決に必要なためです）。
+	var image_path: String = sheet_png_path
+	if image_path.is_empty():
+		image_path = ase_path.get_basename() + ".png"
+	else:
+		var save_result: int = (strip["image"] as Image).save_png(image_path)
+		if save_result != OK:
+			push_error("TKAsepriteImporter: シートPNGを書き出せません: " + image_path)
+			return {}
+
+	var base_name: String = sprite_name
+	if base_name.is_empty():
+		base_name = ase_path.get_file().get_basename().to_upper()
+
+	var sheet: Dictionary = make_sheet_dict_from_doc(doc, strip, image_path, base_name)
+	return import_sheet_dict(sheet, image_path, existing_defs, split_by_tag, base_name, atlas_alias)
+# [import_aseprite]END
+
+
+# [pack_images_to_strip]
+# 処理内容: 同じ大きさのフレーム画像を横一列に並べた 1 枚のシート画像へまとめます。
+# 引数 images: フレーム順の Image 配列です。
+# 戻り値: {"image", "frame_w", "frame_h", "count"} です。失敗時は空 Dictionary です。
+static func pack_images_to_strip(images: Array) -> Dictionary:
+	if images.is_empty():
+		return {}
+	var first: Image = images[0]
+	var frame_w: int = first.get_width()
+	var frame_h: int = first.get_height()
+	if frame_w <= 0 or frame_h <= 0:
+		push_error("TKAsepriteImporter: フレームの大きさが不正です。")
+		return {}
+
+	var count: int = images.size()
+	var strip := Image.create(frame_w * count, frame_h, false, Image.FORMAT_RGBA8)
+	strip.fill(Color(0.0, 0.0, 0.0, 0.0))
+	for index in range(count):
+		var frame: Image = images[index]
+		if frame.get_format() != Image.FORMAT_RGBA8:
+			frame.convert(Image.FORMAT_RGBA8)
+		strip.blit_rect(frame, Rect2i(0, 0, frame_w, frame_h), Vector2i(index * frame_w, 0))
+
+	return { "image": strip, "frame_w": frame_w, "frame_h": frame_h, "count": count }
+# [pack_images_to_strip]END
+
+
+# [make_sheet_dict_from_doc]
+# 処理内容: 解析済みの .aseprite 文書とシート情報から、Aseprite のデータJSONと同じ形の
+#           Dictionary を組み立てます。これを import_sheet_dict へ渡すことで、
+#           経路A の変換規則をそのまま再利用します。
+# 引数 doc:        TKAsepriteFile の解析結果です。
+# 引数 strip:      pack_images_to_strip の結果です。
+# 引数 image_path: シート画像のパスです。
+# 引数 base_name:  フレーム名の頭に付けるスプライト名です。
+# 戻り値: データJSON相当の Dictionary です。
+static func make_sheet_dict_from_doc(doc: Dictionary, strip: Dictionary, image_path: String, base_name: String) -> Dictionary:
+	var frame_w: int = int(strip["frame_w"])
+	var frame_h: int = int(strip["frame_h"])
+	var count: int = int(strip["count"])
+	var durations: Array = TKAsepriteFile.get_frame_durations(doc)
+
+	var frames: Array = []
+	for index in range(count):
+		var duration: int = int(durations[index]) if index < durations.size() else 100
+		frames.append({
+			"filename": "%s %d.aseprite" % [base_name, index],
+			"frame": { "x": index * frame_w, "y": 0, "w": frame_w, "h": frame_h },
+			"duration": duration,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": frame_w, "h": frame_h },
+			"sourceSize": { "w": frame_w, "h": frame_h }
+		})
+
+	var frame_tags: Array = []
+	for tag_variant in (doc["tags"] as Array):
+		var tag: Dictionary = tag_variant
+		frame_tags.append({
+			"name": String(tag["name"]),
+			"from": int(tag["from"]),
+			"to": int(tag["to"]),
+			"direction": direction_to_text(int(tag["direction"]))
+		})
+
+	var meta: Dictionary = {
+		"image": image_path.get_file(),
+		"size": { "w": frame_w * count, "h": frame_h },
+		"frameTags": frame_tags
+	}
+
+	var pivot: Array = doc["pivot"]
+	if pivot.size() == 2:
+		meta["slices"] = [{
+			"name": "pivot",
+			"keys": [{ "pivot": { "x": int(pivot[0]), "y": int(pivot[1]) } }]
+		}]
+
+	return { "frames": frames, "meta": meta }
+# [make_sheet_dict_from_doc]END
+
+
+# [direction_to_text]
+# 処理内容: ASE のループ方向の数値を、Aseprite のデータJSONと同じ文字列へ変換します。
+# 引数 direction: 0 順再生 / 1 逆再生 / 2 往復 / 3 逆往復 です。
+# 戻り値: 方向を表す文字列です。
+static func direction_to_text(direction: int) -> String:
+	match direction:
+		1:
+			return "reverse"
+		2:
+			return "pingpong"
+		3:
+			return "pingpong_reverse"
+	return "forward"
+# [direction_to_text]END
+
+
+# [import_aseprite_into_file]
+# 処理内容: .aseprite を直接読み込み、既存の定義ファイルへマージして同じパスへ保存します。
+#           定義ファイルが無い場合は新規作成します。
+# 引数 ase_path:       読み込む .aseprite のパスです。
+# 引数 sheet_png_path: 書き出すシートPNGのパスです。
+# 引数 defs_path:      定義JSONのパスです（読み込み先かつ保存先）。
+# 引数 split_by_tag:   true ならタグごとに別スプライトへ分割します。
+# 引数 sprite_name:    生成するスプライト名です。
+# 引数 atlas_alias:    アトラス別名です。
+# 戻り値: 成功時 true です。
+static func import_aseprite_into_file(
+	ase_path: String,
+	sheet_png_path: String,
+	defs_path: String,
+	split_by_tag: bool = false,
+	sprite_name: String = "",
+	atlas_alias: String = ""
+) -> bool:
+	var existing_defs: Dictionary = {}
+	if FileAccess.file_exists(defs_path):
+		existing_defs = TKSpriteDefinitions.load_file(defs_path)
+	var merged: Dictionary = import_aseprite(ase_path, sheet_png_path, existing_defs, split_by_tag, sprite_name, atlas_alias)
+	if merged.is_empty():
+		return false
+	return TKSpriteDefinitions.save_file(defs_path, merged)
+# [import_aseprite_into_file]END

@@ -10,7 +10,8 @@ English: see [api.md](api.md).
 - [`TKSpriteRegistry`](#tkspriteregistry) — 定義ファイルをサーバーへ登録
 - [`TKSpriteDefinitions`](#tkspritedefinitions) — 定義ファイルの読み書き・検証
 - [`TKSpriteAtlasBuilder`](#tkspriteatlasbuilder) — 回転・スピンアトラスの生成
-- [`TKAsepriteImporter`](#tkaspriteimporter) — Aseprite 書き出しの取り込み
+- [`TKAsepriteImporter`](#tkaspriteimporter) — Aseprite 書き出しと `.aseprite` の取り込み
+- [`TKAsepriteFile`](#tkaspritefile) — `.aseprite` バイナリの解析
 
 JSON スキーマは [sprite_definitions.ja.md](sprite_definitions.ja.md)、Aseprite の手順は
 [aseprite.ja.md](aseprite.ja.md) を参照してください。
@@ -281,3 +282,32 @@ v1 ファイルはそのまま読め、戻り値は常に v2 形式なので、�
 **再インポートの契約:** スプライトは**名前で照合**されます。既存の名前は id を維持し、
 新しい名前には `max_id + 1` が割り当てられます。`draw_size` / `comment` / `extras` は
 前の項目から引き継がれるため、手編集は再インポートで失われません。
+
+同じクラスから、書き出し工程を挟まずに `.aseprite` を直接扱うこともできます。
+
+| メソッド | 内容 |
+|---|---|
+| `static import_aseprite_into_file(ase_path, sheet_png_path, defs_path, split_by_tag := false, sprite_name := "", atlas_alias := "") -> bool` | 解析・シートPNG書き出し・マージ・保存を 1 回で |
+| `static import_aseprite(ase_path, sheet_png_path := "", existing_defs := {}, split_by_tag := false, sprite_name := "", atlas_alias := "") -> Dictionary` | 定義ファイルを保存しない版 |
+
+両方の経路は 1 つの実装へ合流するため、上の再インポートの契約はどちらでも同じです。
+
+## TKAsepriteFile
+
+`.aseprite` / `.ase` バイナリを GDScript で解析します。Aseprite 本体は不要です。定義
+ファイルではなく画素そのものが欲しいときに使います。
+
+| メソッド | 内容 |
+|---|---|
+| `static load_file(path: String) -> Dictionary` | ファイルを解析します。失敗時は空です |
+| `static build_frame_images(doc: Dictionary) -> Array` | 全フレームを RGBA8 の `Image` へ合成します |
+| `static composite_frame(doc: Dictionary, frame_index: int) -> Image` | 1 フレームだけ合成します |
+| `static get_frame_durations(doc: Dictionary) -> Array` | フレームごとの表示時間（ミリ秒）です |
+
+戻り値の文書には `width` / `height` / `color_depth` / `frame_count` / `palette` /
+`layers` / `frames` / `tags` / `pivot` が入っています。
+
+対応範囲は RGBA・グレースケール・インデックスの各カラーモード、生／リンク／zlib圧縮の
+各セル、レイヤーの可視性と不透明度、タグ、パレット、最初のスライスの pivot です。Normal
+以外のブレンドモードはレイヤーごとに 1 回警告して Normal として扱い、タイルマップレイヤー
+は読み飛ばします。

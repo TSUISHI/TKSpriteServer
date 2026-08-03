@@ -17,7 +17,8 @@ GDExtension (C++) 実装と、API 互換の純 GDScript 実装を同梱し、
 - スプライト文字 HUD（`sprlocate` / `sprprint` / `sprcls`）
 - JSON スプライト定義システムと、エディタ下部パネルの視覚的定義エディタ
 - 回転アトラス・スピンアトラスの自動生成（1 枚の絵から最大 256 方向）
-- Aseprite 連携（エクスポート JSON の取り込み。再インポートしても sprite_id は変わりません）
+- Aseprite 連携 — エクスポート JSON に加え、`.aseprite` の直接読み込みにも対応
+  （Aseprite 本体は不要）。再インポートしても sprite_id は変わりません
 
 ## 性能
 
@@ -106,6 +107,7 @@ func _process(_delta: float) -> void:
 | `server.commit_frame()` | フレーム末尾に 1 回呼びます |
 | `TKSpriteRegistry.register_all(server, defs_path, draw_size_scale)` | 定義 JSON を一括登録します |
 | `TKAsepriteImporter.import_sheet_into_file(...)` | Aseprite のエクスポート JSON を定義ファイルへ取り込みます |
+| `TKAsepriteImporter.import_aseprite_into_file(...)` | `.aseprite` を書き出し工程なしで直接取り込みます |
 
 ## デモ
 
@@ -138,7 +140,8 @@ func _process(_delta: float) -> void:
 ## 現在の状態
 
 コア実装、Windows ビルド、定義システム、定義エディタ、Aseprite エクスポート JSON の
-取り込みまで完了しています。`.aseprite` バイナリの直接読み込みは今後の予定です。
+取り込み、`.aseprite` バイナリの直接読み込みまで完了しています。エディタへドラッグ＆
+ドロップで取り込む機能は今後の予定です。
 
 ## ライセンス
 

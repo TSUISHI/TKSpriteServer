@@ -8,7 +8,8 @@ All classes are registered globally by the plugin, so they can be used without
 - [`TKSpriteRegistry`](#tkspriteregistry) — register a definition file into a server
 - [`TKSpriteDefinitions`](#tkspritedefinitions) — read, write and validate definition files
 - [`TKSpriteAtlasBuilder`](#tkspriteatlasbuilder) — generate rotation and spin atlases
-- [`TKAsepriteImporter`](#tkaspriteimporter) — import Aseprite exports
+- [`TKAsepriteImporter`](#tkaspriteimporter) — import Aseprite exports and `.aseprite` files
+- [`TKAsepriteFile`](#tkaspritefile) — parse `.aseprite` binaries in GDScript
 
 See also [sprite_definitions.md](sprite_definitions.md) for the JSON schema and
 [aseprite.md](aseprite.md) for the Aseprite workflow.
@@ -289,3 +290,32 @@ Both `--format json-array` and `--format json-hash` are accepted.
 **Re-import contract:** sprites are matched **by name**. An existing name keeps its id, a
 new name gets `max_id + 1`, and `draw_size`, `comment` and `extras` are carried over from
 the previous entry — so hand edits survive a re-import.
+
+The same class also handles `.aseprite` files directly, without an export step:
+
+| Method | Description |
+|---|---|
+| `static import_aseprite_into_file(ase_path, sheet_png_path, defs_path, split_by_tag := false, sprite_name := "", atlas_alias := "") -> bool` | Parse, write the sheet PNG, merge and save |
+| `static import_aseprite(ase_path, sheet_png_path := "", existing_defs := {}, split_by_tag := false, sprite_name := "", atlas_alias := "") -> Dictionary` | The same without saving the definition file |
+
+Both routes converge on one implementation, so the re-import contract above holds either
+way.
+
+## TKAsepriteFile
+
+Parses `.aseprite` / `.ase` binaries in GDScript. Aseprite itself is not needed. Use this
+when you want the pixels rather than a definition file.
+
+| Method | Description |
+|---|---|
+| `static load_file(path: String) -> Dictionary` | Parse a file; empty on failure |
+| `static build_frame_images(doc: Dictionary) -> Array` | Composite every frame into an RGBA8 `Image` |
+| `static composite_frame(doc: Dictionary, frame_index: int) -> Image` | One frame only |
+| `static get_frame_durations(doc: Dictionary) -> Array` | Per-frame duration in milliseconds |
+
+The returned document holds `width`, `height`, `color_depth`, `frame_count`, `palette`,
+`layers`, `frames`, `tags` and `pivot`.
+
+Supported: RGBA / grayscale / indexed colour, raw / linked / zlib-compressed cels, layer
+visibility and opacity, tags, palettes and the first slice pivot. Blend modes other than
+Normal warn once per layer and are treated as Normal; tilemap layers are skipped.

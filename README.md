@@ -19,7 +19,8 @@ platforms where no native binary is available.
 - Sprite-text HUD (`sprlocate` / `sprprint` / `sprcls`)
 - JSON sprite definition system with a visual definition editor in a bottom panel
 - Automatic rotation and spin atlas generation (up to 256 directions from one source image)
-- Aseprite integration (imports exported JSON; sprite ids stay stable across re-imports)
+- Aseprite integration — exported JSON *or* `.aseprite` files read directly, with no
+  Aseprite installation required; sprite ids stay stable across re-imports
 
 ## Performance
 
@@ -108,6 +109,7 @@ func _process(_delta: float) -> void:
 | `server.commit_frame()` | Call once per frame, at the end |
 | `TKSpriteRegistry.register_all(server, defs_path, draw_size_scale)` | Register a whole definition file |
 | `TKAsepriteImporter.import_sheet_into_file(...)` | Merge an Aseprite export into a definition file |
+| `TKAsepriteImporter.import_aseprite_into_file(...)` | Merge a `.aseprite` file directly, no export step |
 
 ## Demos
 
@@ -140,8 +142,9 @@ All demo and test assets are placeholder shapes generated at build time; no game
 
 ## Status
 
-The core, the Windows build, the definition system, the definition editor and the
-Aseprite JSON import are complete. Reading `.aseprite` files directly is planned.
+The core, the Windows build, the definition system, the definition editor, the Aseprite
+JSON import and direct `.aseprite` reading are complete. A drag-and-drop editor importer
+for `.aseprite` is planned.
 
 ## License
 
