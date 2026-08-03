@@ -44,8 +44,8 @@ The native backend scales close to linearly with sprite count and keeps frame ti
 | Platform | Native binary | Runtime check |
 |---|---|---|
 | Windows x86_64 | bundled (`template_debug` / `template_release`) | verified |
-| Linux x86_64 | built by CI, bundled once committed | not yet run |
-| macOS universal (x86_64 + arm64) | built by CI, bundled once committed | not yet run |
+| Linux x86_64 | bundled (`template_debug` / `template_release`) | not yet run |
+| macOS universal (x86_64 + arm64) | bundled (`template_debug` / `template_release`) | not yet run |
 | Anything else | — | GDScript backend |
 
 The macOS binary is shipped as an **ad-hoc signed** `.framework` bundle, which is enough
@@ -155,9 +155,10 @@ All demo and test assets are placeholder shapes generated at build time; no game
 ## Status
 
 The core, the definition system, the definition editor, the Aseprite JSON import and
-direct `.aseprite` reading are complete. The Windows binary is bundled and verified;
-Linux and macOS universal builds are produced by CI and are pending a first run on real
-hardware. A drag-and-drop editor importer for `.aseprite` is planned.
+direct `.aseprite` reading are complete. Binaries for all three platforms are bundled.
+The Windows one is verified in use; the Linux and macOS universal builds come from CI and
+have not yet been run on real hardware. A drag-and-drop editor importer for `.aseprite`
+is planned.
 
 ## License
 

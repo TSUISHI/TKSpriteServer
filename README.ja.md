@@ -42,8 +42,8 @@ Windows / Godot 4.6.3。GPU 負荷や vsync 待ちは含みません）。
 | プラットフォーム | ネイティブバイナリ | 実機確認 |
 |---|---|---|
 | Windows x86_64 | 同梱（`template_debug` / `template_release`） | 済 |
-| Linux x86_64 | CI でビルド。コミット取り込み後に同梱 | 未 |
-| macOS universal（x86_64 + arm64） | CI でビルド。コミット取り込み後に同梱 | 未 |
+| Linux x86_64 | 同梱（`template_debug` / `template_release`） | 未 |
+| macOS universal（x86_64 + arm64） | 同梱（`template_debug` / `template_release`） | 未 |
 | その他 | — | GDScript 実装 |
 
 macOS 版は **ad-hoc 署名済み**の `.framework` バンドルとして配布します。拡張のロードには
@@ -151,9 +151,9 @@ func _process(_delta: float) -> void:
 ## 現在の状態
 
 コア実装、定義システム、定義エディタ、Aseprite エクスポート JSON の取り込み、
-`.aseprite` バイナリの直接読み込みまで完了しています。Windows バイナリは同梱・確認済み、
-Linux と macOS universal は CI でビルドまで用意し、実機での初回確認待ちです。
-エディタへドラッグ＆ドロップで取り込む機能は今後の予定です。
+`.aseprite` バイナリの直接読み込みまで完了しています。3 プラットフォーム分のバイナリを
+同梱しています。Windows は動作確認済み、Linux と macOS universal は CI 製で実機確認は
+まだです。エディタへドラッグ＆ドロップで取り込む機能は今後の予定です。
 
 ## ライセンス
 
