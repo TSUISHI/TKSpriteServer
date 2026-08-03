@@ -56,6 +56,12 @@ TKSpriteServer は `RenderingServer` へ直接描画します。`Sprite2D` ノ�
 `allocate_link_id()` は空きスロットを1つ返すだけ、`destroy_sprite()` は末尾との入れ替えで
 O(1) に外します。毎フレームの確保・解放が起きない代わりに、上限を超えると `-1` が返ります。
 
+再利用されるのは**プール配列の添字、つまり link_id という番号だけ**です。`destroy_sprite()`
+は canvas_item の RID をその場で解放し、空いた番号をスタックへ返します。次の
+`allocate_link_id()` は直前に返った番号を受け取りますが、canvas_item は新しく作り直されます。
+番号が同じでも中身は完全に別のスプライトで、休眠状態で保持されるものはありません。
+生成・破棄そのものにコストが掛かるのはこのためです（→ [12. うまく使うために](#12-うまく使うために)）。
+
 **更新は溜めておき、`commit_frame()` でまとめて反映する**
 
 `update_sprite()` は内部の値を書き換えるだけで、`RenderingServer` は呼びません。実際の
@@ -361,10 +367,61 @@ func _exit_tree() -> void:
   れば何も描かれません。
 - **link_id は使い回す。** 毎フレーム確保しないでください。使い捨て描画が本当に必要な
   ときだけ `request_draw()` を使います（呼ぶたびに一時スロットを消費します）。
+  生成・破棄のコストは、破棄する体数ではなく**そのとき生きている体数**で決まります
+  （下記）。
+- **生成・破棄が続くなら、消さずに隠す。** 弾やエフェクトのように出入りの激しいものは、
+  `destroy_sprite()` せずに link_id を保持したまま画面外へ逃がすか、透明色で更新して
+  おくほうが安く済みます。破棄と再生成を1体ぶん行うコストは、同じプレーンにいる
+  スプライト数に比例して増えるためです。ネイティブバックエンド・Godot 4.6.3 /
+  Windows での実測値は次のとおりです（`destroy_sprite()` + `allocate_link_id()` と、
+  それが `commit_frame()` に上乗せする分の合計、1体あたり）。
+
+  | 生きている体数 | 1体を作り直すコスト |
+  |---|---|
+  | 1,000 | 約 5 µs |
+  | 10,000 | 約 14 µs |
+  | 20,000 | 約 25 µs |
+
+  目安として **`毎フレームの入れ替え数 × 生きている体数 × 1.2 ナノ秒`** で見積もれます。
+  2,000 体で毎フレーム 50 体を入れ替える程度なら 0.12 ms/フレームで無視できますが、
+  20,000 体で 200 体なら約 4.9 ms/フレームに達します。
 - **プールは最悪ケースに合わせる。** `create(max_sprites, ...)` は先に確保する方式で、
   上限に達すると自動で増えずに `allocate_link_id()` が失敗します。
 - **dirty フラグと戦わない。** 同じ値を渡す分にはほぼ無料なので、「動いたかどうか」を
   自前で管理する必要はありません。
+- **ネイティブ時は型付き変数から、引数を省略せずに呼ぶ。** GDScript から
+  GDExtension を1回またぐ固定費は、20,000体で1体あたり約 700 ns あります。この固定費は
+  **引数の数にも、呼ぶメソッドの中身にもほとんど依存しません**（引数1個の取得メソッドと
+  6引数の `update_sprite()` がほぼ同コストでした）。サーバーを `TKSpriteServerNative` 型の
+  変数で受け、省略可能な引数まですべて明示して呼ぶと、1体あたり 730 ns → 438 ns まで
+  落ちます。`demo_stress` を 20,000体で実測したところ、更新＋`commit_frame()` が
+  **19.8 ms → 12.2 ms（38%減）**になりました。
+
+  引数を省略すると高速パスから外れるため、`update_sprite(link, pos, frame)` より
+  `update_sprite(link, pos, frame, Color.WHITE, -1, -1)` のほうが速い、という逆転が
+  起きます。省略値を埋める処理のぶんだけ損をします。
+
+  ただし **`TKSpriteServerNative` を型注釈に書いたスクリプトは、GDExtension が無い環境では
+  パースに失敗し、そのファイルごと読み込めなくなります。** バイナリの無いプラットフォームへも
+  配布するなら、型付きのループだけを別ファイルへ分け、`ClassDB.class_exists()` が真のときだけ
+  `load()` してください。
+
+  ```gdscript
+  # 呼び出し側（型注釈を書かないので、どの環境でも読み込めます）
+  var _fast: RefCounted = null
+  if ClassDB.class_exists("TKSpriteServerNative"):
+      var s: Script = load("res://your_game/fast_update.gd")
+      if s != null and s.can_instantiate():
+          var updater: RefCounted = s.new()
+          if updater.setup(_server):
+              _fast = updater
+  ```
+
+  渡した配列を**呼び出し先で書き換えないでください**。`PackedFloat32Array` などは
+  書き込み時コピーなので、複数から参照されている状態で書き換えると配列全体が複製され、
+  節約したぶんを失います。座標計算は呼び出し側で済ませ、渡した先では読むだけにします。
+  実装例は [demo/demo_stress.gd](../demo/demo_stress.gd) と
+  [demo/demo_stress_native_update.gd](../demo/demo_stress_native_update.gd) にあります。
 - **スプライト登録は読み込み時に。** `TKSpriteRegistry` と `TKSpriteDefinitions` は
   起動時とツール用です。フレームループへ持ち込まないでください。
 - **バックエンド名はキャッシュする。** HUD に出す場合、毎フレーム取得しないこと。

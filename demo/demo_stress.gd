@@ -62,6 +62,11 @@ const _FRAME_RECTS: Array[Rect2] = [
 var _server: Object = null
 var _prefer_native: bool = true
 
+# ネイティブバックエンド時だけ入る高速更新ループです（demo_stress_native_update.gd）。
+# 型付き変数から呼ぶことで呼び出しの固定費を下げます。GDScript バックエンド時は
+# null のままで、従来どおり _server 経由で呼びます。
+var _native_updater: RefCounted = null
+
 var _texture: ImageTexture = null
 
 var _plane_back: RID = RID()
@@ -275,10 +280,33 @@ func _recreate_server() -> void:
 	_server.sprite_textures[SPRITE_ID] = {"texture": _texture, "frames": _FRAME_RECTS}
 	_server.set_sprite_draw_size(SPRITE_ID, Vector2(16.0, 16.0))
 
+	_native_updater = _create_native_updater()
+	print("[TKSpriteServer] typed fast update = ", _native_updater != null)
+
 	for i in range(_active_count):
 		_link_ids[i] = _server.allocate_link_id(SPRITE_ID, _flip_h_state, _flip_v_state)
 	return  # end of function
 # [_recreate_server]END
+
+
+# [_create_native_updater]
+# 処理内容: ネイティブバックエンドのときだけ、型付きの高速更新ループを読み込みます。
+#           TKSpriteServerNative を型注釈に使うスクリプトは、GDExtension が
+#           無い環境ではパースに失敗します。そのため必ず ClassDB.class_exists() で
+#           確認してから load() し、ここ以外からは参照しません。
+# 引数: なし。
+# 戻り値: 使えるなら更新ループのインスタンス、使えないなら null です。
+func _create_native_updater() -> RefCounted:
+	if not ClassDB.class_exists("TKSpriteServerNative"):
+		return null
+	var updater_script: Script = load("res://demo/demo_stress_native_update.gd")
+	if updater_script == null or not updater_script.can_instantiate():
+		return null
+	var updater: RefCounted = updater_script.new()
+	if not updater.setup(_server):
+		return null
+	return updater
+# [_create_native_updater]END
 
 
 # [_process]
@@ -308,6 +336,10 @@ func _process(delta: float) -> void:
 # 処理内容: PackedFloat32Array に保持した座標・速度を使って全スプライトを
 #           移動させ、画面端で反射させたうえでサーバーへ反映します。
 #           新規の Array/Dictionary/String はここでは確保しません。
+#           移動計算とサーバーへの反映を2つのループに分けているのは、
+#           反映側だけを型付きの高速ループ（_native_updater）へ差し替えられる
+#           ようにするためです。座標の書き込みはこちら側で完結させ、
+#           渡した先では読むだけにします（書き込み時コピーを避けるため）。
 # 引数 delta: 前フレームからの経過秒数です。
 # 戻り値: なし。
 func _update_sprites(delta: float) -> void:
@@ -349,9 +381,14 @@ func _update_sprites(delta: float) -> void:
 		_positions[base_idx] = pos_x
 		_positions[base_idx + 1] = pos_y
 
-		# フレームを個体ごとに変えます。全個体を frame=0（丸）で描くと
-		# 左右対称なので反転が目視できなくなるためです。
-		_server.update_sprite_scaled(_link_ids[i], Vector2(pos_x, pos_y), scale, i % _FRAME_RECTS.size(), Color.WHITE, -1, -1)
+	# フレームを個体ごとに変えます。全個体を frame=0 で描くと左右対称になり、
+	# 反転が目視できなくなるためです。
+	if _native_updater != null:
+		_native_updater.update_all(_link_ids, _positions, _active_count, scale, _FRAME_RECTS.size())
+	else:
+		for i in range(_active_count):
+			var pos_idx := i * 2
+			_server.update_sprite_scaled(_link_ids[i], Vector2(_positions[pos_idx], _positions[pos_idx + 1]), scale, i % _FRAME_RECTS.size(), Color.WHITE, -1, -1)
 	return  # end of function
 # [_update_sprites]END
 

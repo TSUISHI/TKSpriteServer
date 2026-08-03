@@ -58,6 +58,13 @@ The pool is allocated in one go by `create(max_sprites, ...)` and never grows af
 swapping with the last active entry. Nothing is allocated or freed per frame — the price is
 that `allocate_link_id()` returns `-1` once the pool is full.
 
+What gets recycled is **the pool index — the link id number — and nothing else**.
+`destroy_sprite()` frees the sprite's canvas item RID immediately and pushes the number onto
+a stack; the next `allocate_link_id()` pops that same number back but creates a fresh canvas
+item for it. An identical link id is a completely different sprite, and nothing is kept
+dormant for reuse. That is why creating and destroying sprites is not free — see
+[12. Getting the most out of it](#12-getting-the-most-out-of-it).
+
 **Updates are buffered and committed in one pass by `commit_frame()`**
 
 `update_sprite()` only writes into the server's own state; it never touches the
@@ -367,11 +374,63 @@ time), or the RIDs leak for the rest of the session.
 - **Call `commit_frame()` once per frame, at the very end.** Calling it more often does
   redundant work; forgetting it means nothing renders.
 - **Allocate link ids once, not per frame.** Use `request_draw()` only for genuinely
-  one-off drawing — it allocates a transient slot every call.
+  one-off drawing — it allocates a transient slot every call. What that costs depends on
+  how many sprites are alive, not on how many you destroy (below).
+- **If sprites come and go constantly, hide them instead of destroying them.** For bullets
+  and effects it is cheaper to keep the link id and move the sprite off-screen, or update it
+  with a transparent colour, than to call `destroy_sprite()` and allocate again. Replacing
+  one sprite costs more the more sprites share the plane. Measured on the native backend,
+  Godot 4.6.3 / Windows — `destroy_sprite()` + `allocate_link_id()` plus what that adds to
+  `commit_frame()`, per sprite:
+
+  | Sprites alive | Cost of replacing one |
+  |---|---|
+  | 1,000 | ~5 µs |
+  | 10,000 | ~14 µs |
+  | 20,000 | ~25 µs |
+
+  As a rule of thumb, **`replacements per frame × sprites alive × 1.2 ns`**. Replacing 50
+  sprites a frame out of 2,000 costs 0.12 ms per frame and does not matter; replacing 200 a
+  frame out of 20,000 costs about 4.9 ms per frame and does.
 - **Size the pool for your worst case.** `create(max_sprites, ...)` allocates up front;
   `allocate_link_id()` starts failing at the limit rather than growing.
 - **Don't fight the dirty flag.** Passing the same values costs almost nothing, so there
   is no need to track "did this sprite move" yourself.
+- **On the native backend, call through a typed variable and pass every argument.**
+  Crossing from GDScript into the GDExtension costs about 700 ns per sprite at 20,000
+  sprites, and that cost barely depends on **how many arguments you pass or what the method
+  does** — a one-argument getter measured about the same as a six-argument
+  `update_sprite()`. Holding the server in a variable typed as `TKSpriteServerNative` and
+  spelling out even the optional arguments brings it down from 730 ns to 438 ns per sprite.
+  Measured on `demo_stress` with 20,000 sprites, the update plus `commit_frame()` went from
+  **19.8 ms to 12.2 ms per frame — 38% less**.
+
+  Omitting optional arguments drops you off the fast path, so
+  `update_sprite(link, pos, frame, Color.WHITE, -1, -1)` is *faster* than
+  `update_sprite(link, pos, frame)`. Filling in the defaults costs more than passing them.
+
+  Note that **a script that names `TKSpriteServerNative` in a type annotation fails to parse
+  where the GDExtension is absent, and the whole file then fails to load.** If you ship to
+  platforms with no binary, keep the typed loop in a file of its own and `load()` it only
+  when `ClassDB.class_exists()` says the class is there.
+
+  ```gdscript
+  # The caller names no extension type, so it loads everywhere.
+  var _fast: RefCounted = null
+  if ClassDB.class_exists("TKSpriteServerNative"):
+      var s: Script = load("res://your_game/fast_update.gd")
+      if s != null and s.can_instantiate():
+          var updater: RefCounted = s.new()
+          if updater.setup(_server):
+              _fast = updater
+  ```
+
+  **Do not write to an array you passed in.** `PackedFloat32Array` and friends are
+  copy-on-write, so writing to one while another reference is alive copies the whole array
+  and eats the saving. Do the position maths on the calling side and only read from the
+  array in the fast loop. See [demo/demo_stress.gd](../demo/demo_stress.gd) and
+  [demo/demo_stress_native_update.gd](../demo/demo_stress_native_update.gd) for a worked
+  example.
 - **Register sprites at load time.** `TKSpriteRegistry` and `TKSpriteDefinitions` are
   start-up tools; keep them out of the frame loop.
 - **Cache the backend name** if you show it in a HUD; don't call it every frame.
