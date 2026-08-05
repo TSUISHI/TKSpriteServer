@@ -18,3 +18,11 @@ addons/tk_sprite_server/bin/*.framework/** binary
 
 # シェルスクリプトは CRLF だと CI のランナーで実行できません。
 *.sh text eol=lf
+
+# AssetLib からのダウンロード（GitHub のタグ ZIP）には addons/ だけを含めます。
+# リポジトリ全体（demo, docs, native, tests, tools など）が配布物に入ると、
+# 利用者のプロジェクトへ不要なファイルが展開されてしまうためです。
+# 参考: Godot ドキュメント「Submitting to the Asset Library」の Recommendations
+/**        export-ignore
+/addons    !export-ignore
+/addons/** !export-ignore
