@@ -14,6 +14,7 @@ platforms where no native binary is available.
 
 - Link-ID sprite pool that scales to tens of thousands of sprites
 - Dirty-flag incremental updates — unchanged sprites are never redrawn
+- Selectable draw planes (back / medium / front / effect / text)
 - Z-plane overlay processing (you can also draw sprites on the same plane).
 - Runtime flip (FLIP / FLOP) and scaling
 - Sprite-text HUD (`sprlocate` / `sprprint` / `sprcls`)
