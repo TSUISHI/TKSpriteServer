@@ -12,7 +12,7 @@ GDExtension (C++) 実装と、API 互換の純 GDScript 実装を同梱し、
 
 - リンクID方式のスプライトプール（数万枚規模）
 - dirty フラグによる差分更新（変化のないスプライトは再描画しません）
-- 5 プレーンの描画管理（back / medium / front / effect / text）
+- Zプレーンの重ね合わせ処理（同じプレーンにスプライトを描くことも出来ます）
 - 反転（FLIP / FLOP）と拡縮の実行時切り替え
 - スプライト文字 HUD（`sprlocate` / `sprprint` / `sprcls`）
 - JSON スプライト定義システムと、エディタ下部パネルの視覚的定義エディタ
